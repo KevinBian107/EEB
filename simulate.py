@@ -48,41 +48,6 @@ def run_simulation(model, device, time_steps=100, condition="baseline"):
     return LC_vals, NE_vals, C_vals
 
 
-def run_trained_fitter_simulation(model, device, time_steps=100, condition="baseline"):
-    '''Runs trained LCNECortexFitter model to generate simulated pupil dilation & memory accuracy'''
-
-    LC_vals, NE_vals, C_vals, Pupil_vals, Mem_vals = [], [], [], [], []
-
-    # Initialize LC and Cortex state
-    LC_t = torch.tensor(0.1, device=device)
-    C_t = torch.tensor(0.1, device=device)
-
-    for t in range(time_steps):
-        x_t = torch.randn(1, device=device) * 0.1  # Sensory stimulus
-
-        # Define stressor conditions
-        if condition == "acute_stress":
-            stress_t = torch.tensor(1.0 if t == 50 else 0.0, device=device)
-        elif condition == "chronic_stress":
-            stress_t = torch.tensor(0.1 * torch.exp(torch.tensor(-0.02 * t, device=device)), device=device)
-        elif condition == "top_down_control":
-            stress_t = torch.tensor(0.5, device=device)
-        else:
-            stress_t = torch.tensor(0.0, device=device)
-
-        # Forward pass with trained model
-        LC_t, NE_t, C_t, Pupil_t, Mem_t = model(x_t, LC_t, C_t)
-
-        # Store values
-        LC_vals.append(LC_t.item())
-        NE_vals.append(NE_t.item())
-        C_vals.append(C_t.item())
-        Pupil_vals.append(Pupil_t.item())
-        Mem_vals.append(Mem_t.item())
-
-    return LC_vals, NE_vals, C_vals, Pupil_vals, Mem_vals
-
-
 def render_plot(results):
     '''Rendering helper functions'''
     plt.figure(figsize=(12, 6))

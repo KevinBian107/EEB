@@ -15,13 +15,10 @@ class LCNECortexFCN(nn.Module):
         self.b = nn.Parameter(torch.tensor(0.1))  # LC bias
 
     def forward(self, x_t, stress_t, prev_LC, prev_Cortex):
-        # LC Activity Update
         LC_t = torch.tanh(self.W_x * x_t + self.W_h * prev_LC + self.b + stress_t)
         
-        # NE Release
         NE_t = torch.sigmoid(self.W_LC * LC_t)
         
-        # Cortical Activity Update
         C_t = prev_Cortex + self.lambda_cortex * self.W_LC * NE_t + self.W_C * x_t
         
         return LC_t, NE_t, C_t
@@ -41,21 +38,16 @@ class LCNECortexRNN(nn.Module):
         self.cortex_out = nn.Linear(hidden_size, 1)  # Cortex output
 
     def forward(self, x_t, stress_t, prev_LC_hidden, prev_Cortex_hidden):
-        # Expand x_t to match hidden size
         x_t_exp = x_t.expand(1, self.hidden_size)  # Expand to (batch_size, hidden_size)
         
-        # Update LC hidden state
         LC_hidden = self.lc_rnn(x_t_exp, prev_LC_hidden)
         
-        # Compute LC output and NE release
         LC_t = torch.tanh(self.lc_out(LC_hidden))
         NE_t = torch.sigmoid(self.ne_out(LC_hidden))
 
-        # Update Cortex hidden state
         NE_exp = NE_t.expand(1, self.hidden_size)  # Ensure correct input size
         Cortex_hidden = self.cortex_rnn(NE_exp, prev_Cortex_hidden)
 
-        # Compute Cortex output
         C_t = self.cortex_out(Cortex_hidden) + self.lambda_cortex * NE_t
 
         return LC_t, NE_t, C_t, LC_hidden, Cortex_hidden
@@ -65,43 +57,60 @@ class LCNECortexFitter(nn.Module):
         super(LCNECortexFitter, self).__init__()
         self.lambda_cortex = lambda_cortex
 
-        # learnable parameters to optimized for fiting real data
+        # learnable parameters to optimized for fiting real data, initialize with some values
         self.W_x = nn.Parameter(torch.tensor(0.5))  # Sensory input weight
         self.W_h = nn.Parameter(torch.tensor(0.7))  # LC recurrent weight
         self.W_LC = nn.Parameter(torch.tensor(0.8))  # LC-to-Cortex modulation
         self.W_C = nn.Parameter(torch.tensor(0.5))  # Sensory-to-Cortex weight
+        self.W_LC_Pupil = nn.Parameter(torch.tensor(0.4))
+        self.W_C_Pupil = nn.Parameter(torch.tensor(0.3))
+        self.W_NE_Pupil = nn.Parameter(torch.tensor(0.2))
         self.b = nn.Parameter(torch.tensor(0.1))  # LC bias
 
     def forward(self, X, prev_LC, prev_Cortex):
-        """
-        X: Input features (batch_size, num_features)
-        prev_LC: Previous LC activation (batch_size,)
-        prev_Cortex: Previous Cortex activation (batch_size,)
-        """
-        # Compute LC activity update for batch
+        #  LC activity update for batch
         LC_t = torch.tanh(self.W_x * X[:, 0] + self.W_h * prev_LC + self.b)
 
-        # Compute NE release
+        # NE release
         NE_t = torch.sigmoid(self.W_LC * LC_t)
 
-        # Compute cortical activity update
+        # cortical activity update
         C_t = prev_Cortex + self.lambda_cortex * self.W_LC * NE_t + self.W_C * X[:, 0]
 
-        # Predicted pupil dilation (arousal effect)
-        Pupil_t = 0.4 * LC_t + 0.3 * C_t + 0.2 * NE_t + 0.1 * torch.sin(X[:, 0])
+        # pupil dilation (arousal effect)
+        # Pupil_t = 0.4 * LC_t + 0.3 * C_t + 0.2 * NE_t + 0.1 * torch.sin(X[:, 0])
+        Pupil_t = self.W_LC_Pupil * LC_t + self.W_C_Pupil * C_t + self.W_NE_Pupil * NE_t  # Learnable weighting
 
         return LC_t, NE_t, C_t, Pupil_t
-
-class PupilDilationPredictor(nn.Module):
-    '''Simple linear regression model to predict pupil dilation'''
+    
+class FeedForwardNN(nn.Module):
+    '''Simple feedforward network with intermediate activation extraction'''
     def __init__(self, input_size):
-        super(PupilDilationPredictor, self).__init__()
+        super(FeedForwardNN, self).__init__()
         self.fc1 = nn.Linear(input_size, 32)
         self.fc2 = nn.Linear(32, 16)
         self.fc3 = nn.Linear(16, 1)
 
+    def forward(self, x, return_activations=False):
+        act1 = torch.relu(self.fc1(x))
+        act2 = torch.relu(self.fc2(act1))
+        output = self.fc3(act2)
+
+        if return_activations:
+            return output, act1, act2
+        return output
+
+class RecurrentNet(nn.Module):  # Ensure nn.Module is inherited
+    '''An RNN-based model for predicting pupil dilation'''
+    def __init__(self, input_size, hidden_size=32):
+        super().__init__()  # Use `super()` correctly without explicit arguments
+        self.hidden_size = hidden_size
+        self.rnn = nn.RNN(input_size, hidden_size, batch_first=True)  # batch_first=True ensures (batch, seq, feature)
+        self.fc = nn.Linear(hidden_size, 1)
+
     def forward(self, x):
-        x = torch.relu(self.fc1(x))
-        x = torch.relu(self.fc2(x))
-        x = self.fc3(x)
-        return x
+        h0 = torch.zeros(1, x.size(0), self.hidden_size, device=x.device)  # Initialize hidden state
+        out, _ = self.rnn(x, h0)  # x shape: (batch_size, seq_length=1, input_size)
+        out = self.fc(out[:, -1, :])  # Take last timestep output
+        return out
+
