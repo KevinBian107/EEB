@@ -91,36 +91,36 @@ class LCNECortexFitter(nn.Module):
         self.lambda_cortex = lambda_cortex
         self.hidden_dim = hidden_dim
 
-        # Linear layers to correctly map dimensions
-        self.W_x = nn.Linear(input_dim, hidden_dim)  # Now takes full input feature size
+        # linear layers to correctly map dimensions
+        self.W_x = nn.Linear(input_dim, hidden_dim)
         self.W_h = nn.Linear(hidden_dim, hidden_dim)
         self.W_LC = nn.Linear(hidden_dim, hidden_dim)
         self.W_C = nn.Linear(hidden_dim, hidden_dim)
-        self.W_LC_Pupil = nn.Linear(hidden_dim, 1)  # Output layer for pupil dilation
+        self.W_LC_Pupil = nn.Linear(hidden_dim, 1)
 
-        # Batch normalization layers for stable training
+        # batch normalization layers for stable training
         self.bn1 = nn.BatchNorm1d(hidden_dim)
         self.bn2 = nn.BatchNorm1d(hidden_dim)
         self.bn3 = nn.BatchNorm1d(hidden_dim)
 
-        self.relu = nn.LeakyReLU(0.1)  # Prevents dead neurons
+        self.relu = nn.LeakyReLU(0.1)  # prevents dead neurons
 
     def forward(self, X, prev_LC, prev_Cortex, return_activations=False):
         x_input = self.W_x(X)
 
-        # Compute LC activity
+        # LC activity
         LC_raw = x_input + self.W_h(prev_LC)  
         LC_t = self.relu(self.bn1(LC_raw))
 
-        # Compute NE release
+        # NE release
         NE_raw = self.W_LC(LC_t)
         NE_t = self.relu(self.bn2(NE_raw))
 
-        # Compute cortical activity update
+        # cortical activity update
         C_raw = prev_Cortex + self.lambda_cortex * self.W_LC(NE_t) + self.W_C(x_input)
         C_t = self.relu(self.bn3(C_raw))
 
-        # Compute pupil dilation
+        # pupil dilation output
         Pupil_t = self.W_LC_Pupil(LC_t) + self.W_LC_Pupil(C_t) + self.W_LC_Pupil(NE_t)
 
         if return_activations:
@@ -144,10 +144,10 @@ class FeedForwardNN(nn.Module):
             return output, act1, act2
         return output
 
-class RecurrentNet(nn.Module):  # Ensure nn.Module is inherited
+class RecurrentNet(nn.Module): 
     '''An RNN-based model for predicting pupil dilation'''
     def __init__(self, input_size, hidden_size=32):
-        super().__init__()  # Use `super()` correctly without explicit arguments
+        super().__init__()
         self.hidden_size = hidden_size
         self.rnn = nn.RNN(input_size, hidden_size, batch_first=True)  # batch_first=True ensures (batch, seq, feature)
         self.fc = nn.Linear(hidden_size, 1)
