@@ -3,6 +3,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import json
+from sklearn.preprocessing import StandardScaler, OneHotEncoder, MinMaxScaler
+import torch
 
 def load_participants_info(dataset_path):
     '''Load participants information'''
@@ -56,3 +58,39 @@ def load_event_descriptions(dataset_path):
     else:
         print("Event description JSON not found.")
         return None
+
+def preprocess_data(df_behavior):
+    '''Preprocess behavioral data'''
+    
+    features = ['Condition', 'PreEvent_PupilMax', 'TrialEvent', 'onset', 'duration']
+    target = ['Event_PupilDilation']
+
+    df_clean = df_behavior[features + target].dropna().reset_index(drop=True)
+
+    encoder = OneHotEncoder(sparse_output=False, handle_unknown='ignore')
+    encoded_features = encoder.fit_transform(df_clean[['Condition', 'TrialEvent']])
+    encoded_feature_names = encoder.get_feature_names_out(['Condition', 'TrialEvent'])
+
+    scaler_X = StandardScaler()
+    scaled_features = scaler_X.fit_transform(df_clean[['PreEvent_PupilMax', 'onset', 'duration']])
+
+    X_scaled = pd.DataFrame(scaled_features, columns=['PreEvent_PupilMax', 'onset', 'duration'])
+    X_encoded = pd.DataFrame(encoded_features, columns=encoded_feature_names)
+
+    X_scaled.reset_index(drop=True, inplace=True)
+    X_encoded.reset_index(drop=True, inplace=True)
+    X = pd.concat([X_scaled, X_encoded], axis=1)
+
+    # scaler_Y = StandardScaler()
+    # Y = scaler_Y.fit_transform(df_clean[['Event_PupilDilation']].values.reshape(-1,1))
+
+    scaler_Y = MinMaxScaler(feature_range=(-1, 1))
+    Y = scaler_Y.fit_transform(df_clean[['Event_PupilDilation']].values.reshape(-1, 1))
+
+    X_tensor = torch.tensor(X.values, dtype=torch.float32)
+    Y_tensor = torch.tensor(Y, dtype=torch.float32).squeeze()
+
+    print(f"X Shape: {X_tensor.shape}, Y Shape: {Y_tensor.shape}")
+    print(f"Y Min: {Y_tensor.min().item()}, Y Max: {Y_tensor.max().item()}")  # Check Scaling
+    
+    return X, Y, X_tensor, Y_tensor, scaler_X, scaler_Y, df_clean

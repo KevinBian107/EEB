@@ -127,6 +127,61 @@ class LCNECortexFitter(nn.Module):
             return LC_t, NE_t, C_t, Pupil_t, LC_raw, NE_raw, C_raw
         return LC_t, NE_t, C_t, Pupil_t
 
+
+class LCNECortexLSTM(nn.Module):
+    """LCNECortex model with LSTM-style gating mechanisms for improved memory dynamics"""
+    def __init__(self, input_dim, hidden_dim=8, lambda_cortex=0.1):
+        super(LCNECortexLSTM, self).__init__()
+        self.lambda_cortex = lambda_cortex
+        self.hidden_dim = hidden_dim
+
+        # Linear layers for core operations
+        self.W_x = nn.Linear(input_dim, hidden_dim)
+        self.W_h = nn.Linear(hidden_dim, hidden_dim)
+        self.W_LC = nn.Linear(hidden_dim, hidden_dim)
+        self.W_C = nn.Linear(hidden_dim, hidden_dim)
+        self.W_Pupil = nn.Linear(hidden_dim, 1)  
+
+        # LSTM-like gating mechanisms
+        self.W_forget = nn.Linear(hidden_dim, hidden_dim)   # Forget gate
+        self.W_input = nn.Linear(hidden_dim, hidden_dim)    # Input gate
+        self.W_output = nn.Linear(hidden_dim, hidden_dim)   # Output gate
+        
+        # Batch normalization layers
+        self.bn1 = nn.BatchNorm1d(hidden_dim)
+        self.bn2 = nn.BatchNorm1d(hidden_dim)
+        self.bn3 = nn.BatchNorm1d(hidden_dim)
+
+        self.relu = nn.LeakyReLU(0.1)
+
+    def forward(self, X, prev_LC, prev_Cortex, cell_state, return_activations=False):
+        x_input = self.W_x(X)
+
+        # LC activity
+        LC_raw = x_input + self.W_h(prev_LC)  
+        LC_t = self.relu(self.bn1(LC_raw))
+
+        # NE release
+        NE_raw = self.W_LC(LC_t)
+        NE_t = self.relu(self.bn2(NE_raw))
+
+        # Forget & Input gates
+        forget_gate = torch.sigmoid(self.W_forget(prev_Cortex))  # Forget previous memory
+        input_gate = torch.sigmoid(self.W_input(x_input))  # Determine new memory contribution
+        
+        # Update Cortex Memory (Cell State)
+        cell_state = forget_gate * cell_state + input_gate * self.lambda_cortex * self.W_LC(NE_t) + self.W_C(x_input)
+        C_t = self.relu(self.bn3(cell_state))  # Cortex activation
+
+        # Output gate
+        output_gate = torch.sigmoid(self.W_output(C_t))
+        Pupil_t = output_gate * self.W_Pupil(LC_t + C_t + NE_t)  # Modulated pupil dilation
+
+        if return_activations:
+            return LC_t, NE_t, C_t, Pupil_t, forget_gate, input_gate, output_gate, cell_state
+        return LC_t, NE_t, C_t, Pupil_t, cell_state
+
+
 class FeedForwardNN(nn.Module):
     '''Simple feedforward network with intermediate activation extraction'''
     def __init__(self, input_size):
