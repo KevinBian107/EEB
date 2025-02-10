@@ -3,7 +3,7 @@ Study into the connection between Locus Coeruleus (LC)'s role in the generation 
 - Meeting docs: https://docs.google.com/document/d/1740GxJ5xmIjUbWH8_RjYnuI5KNnZwGkvKQaM6hEzCLc/edit?tab=t.0#heading=h.e9mhf81r5r4b
 - Computation formulation: https://www.overleaf.com/project/67a703b870287a1af3db3532
 
-# Two Approaches
+# Two Approaches in BDP
 There can be two approaches in the BDP project, which is decribed in the following:
 
 ### Mechanistic Model Developing
@@ -17,7 +17,19 @@ This is the idea of using a **mechanistic model** to fit real neuroscience data.
 - Very interpretable model as we control each "mechanistic" controller in seeing what might happen if we change something.
 
 ### Learning From Data
-We can use classical networks to fit the data, then try to correlate the concepts that these computation models have learned with concepts in neuroscience. Maybe this can get us closer to the true process of information processing.
+We can use classical networks to fit the data, then try to correlate the concepts that these computation models have learned with concepts in neuroscience. Maybe this can get us closer to the true process of information processing
+
+### Preliminary Result
+Interestingly, we have found that the rpincipal component representation of our customized LCNE model seems to be more structured than the similar trained one (even better fitted model) of the feedforward network.
+
+| FF-NN PCA Clusters Activation Layer 1 | FF-NN PCA Clusters Activation Layer 2 |
+|--------------|---------------|
+| ![PCA](results/ff_pca1.png) | ![PCA](results/ff_pca2.png) |
+
+| LCNECortex Model PCA Clusters  | LCNECortex Model t-SNE Clusters |
+|--------------|---------------|
+| ![PCA](results/lc_pca.png) | ![t-SNE](results/lc_tsne.png) |
+
 
 
 # Data Source

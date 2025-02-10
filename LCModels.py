@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import numpy as np
 
 class LCNECortexFCN(nn.Module):
     '''Vanilla FCN based LCNE model'''
@@ -52,7 +51,8 @@ class LCNECortexRNN(nn.Module):
 
         return LC_t, NE_t, C_t, LC_hidden, Cortex_hidden
 
-class LCNECortexFitter(nn.Module):
+class LCNECortexFitterBasic(nn.Module):
+    '''Basic LCNECortex model with learnable parameters'''
     def __init__(self, lambda_cortex=0.1):
         super(LCNECortexFitter, self).__init__()
         self.lambda_cortex = lambda_cortex
@@ -83,6 +83,50 @@ class LCNECortexFitter(nn.Module):
 
         return LC_t, NE_t, C_t, Pupil_t
     
+
+class LCNECortexFitter(nn.Module):
+    """Improved LCNECortex model with learnable parameters and batch normalization"""
+    def __init__(self, input_dim, hidden_dim=8, lambda_cortex=0.1):
+        super(LCNECortexFitter, self).__init__()
+        self.lambda_cortex = lambda_cortex
+        self.hidden_dim = hidden_dim
+
+        # Linear layers to correctly map dimensions
+        self.W_x = nn.Linear(input_dim, hidden_dim)  # Now takes full input feature size
+        self.W_h = nn.Linear(hidden_dim, hidden_dim)
+        self.W_LC = nn.Linear(hidden_dim, hidden_dim)
+        self.W_C = nn.Linear(hidden_dim, hidden_dim)
+        self.W_LC_Pupil = nn.Linear(hidden_dim, 1)  # Output layer for pupil dilation
+
+        # Batch normalization layers for stable training
+        self.bn1 = nn.BatchNorm1d(hidden_dim)
+        self.bn2 = nn.BatchNorm1d(hidden_dim)
+        self.bn3 = nn.BatchNorm1d(hidden_dim)
+
+        self.relu = nn.LeakyReLU(0.1)  # Prevents dead neurons
+
+    def forward(self, X, prev_LC, prev_Cortex, return_activations=False):
+        x_input = self.W_x(X)
+
+        # Compute LC activity
+        LC_raw = x_input + self.W_h(prev_LC)  
+        LC_t = self.relu(self.bn1(LC_raw))
+
+        # Compute NE release
+        NE_raw = self.W_LC(LC_t)
+        NE_t = self.relu(self.bn2(NE_raw))
+
+        # Compute cortical activity update
+        C_raw = prev_Cortex + self.lambda_cortex * self.W_LC(NE_t) + self.W_C(x_input)
+        C_t = self.relu(self.bn3(C_raw))
+
+        # Compute pupil dilation
+        Pupil_t = self.W_LC_Pupil(LC_t) + self.W_LC_Pupil(C_t) + self.W_LC_Pupil(NE_t)
+
+        if return_activations:
+            return LC_t, NE_t, C_t, Pupil_t, LC_raw, NE_raw, C_raw
+        return LC_t, NE_t, C_t, Pupil_t
+
 class FeedForwardNN(nn.Module):
     '''Simple feedforward network with intermediate activation extraction'''
     def __init__(self, input_size):
