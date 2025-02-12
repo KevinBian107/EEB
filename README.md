@@ -15,9 +15,12 @@ Then we use the the idea of using a **mechanistic model** to fit real neuroscien
 - We want more data, more neuroscience situations for this mechanistic model to fit to and demostrate its effects.
 - Very interpretable model as we control each "mechanistic" controller in seeing what might happen if we change something.
 
+## Fancy Gadget to Use:
+Instead of modifying the models directly, maybe we can take an approach that the **Neural Turing Machine (NTM)** did and try to create a gadget (in NTM it represents memory for read and write) and for us the gadget can be think of as teh LC-NE system.
+- It need to be differentiable so everything can be back propoagted and we can see if the network can learn to use this controller (LC-NE system) to achieve  teh effect we see in the samples.
+
 ## Preliminary Results:
 Now  we have a sand-box that has been setup  to implement all kinds of cool neuroscience ideas that we can do:
-
 
 Interestingly, we have found that the rpincipal component representation of our customized LCNE model seems to be more structured than the similar trained one (even better fitted model) of the feedforward network.
 
