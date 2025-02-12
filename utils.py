@@ -17,7 +17,7 @@ from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from LCModels import LCNECortexFCN, LCNECortexRNN
+from models.LCModels import LCNECortexFCN, LCNECortexRNN
 
 def run_simulation(model, device, time_steps=100, condition="baseline"):
     '''Running simulations for all types of untrained models and then graph'''
