@@ -1,7 +1,7 @@
 # Blue Dot Project: A Data Driven "Controller"
 Study into the connection between Locus Coeruleus (LC)'s role in the generation of pathological anxiety and rumination as well as teh effect it would cause on balancing between exploitation and exploration. To this end, we are creating a Locus Coeruleus rumination system in which we call it as the **B**lue **D**ot (LC in greek means little blue dot) **P**roject (BDP).
-- Meeting docs: https://docs.google.com/document/d/1740GxJ5xmIjUbWH8_RjYnuI5KNnZwGkvKQaM6hEzCLc/edit?tab=t.0#heading=h.e9mhf81r5r4b
-- Computation formulation: https://www.overleaf.com/project/67a703b870287a1af3db3532
+- [Meeting docs](https://docs.google.com/document/d/1740GxJ5xmIjUbWH8_RjYnuI5KNnZwGkvKQaM6hEzCLc/edit?tab=t.0#heading=h.e9mhf81r5r4b)
+- [Computation formulation](https://www.overleaf.com/project/67a703b870287a1af3db3532)
 
 ## A Mechanistic Model:
 In a an pure-inference model, we can examine the output diufferences by changing output based on input or constructing the matrix a bit differently to see the effect. However, if we have some sort of data, we can build a data driven model to fit to the data and we can manipulate the model component we have to
