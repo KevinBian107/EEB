@@ -15,9 +15,9 @@ Then we use the the idea of using a **mechanistic model** to fit real neuroscien
 - We want more data, more neuroscience situations for this mechanistic model to fit to and demostrate its effects.
 - Very interpretable model as we control each "mechanistic" controller in seeing what might happen if we change something.
 
-## Fancy Gadget to Use:
+## A Fancy Gadget to Use:
 Instead of modifying the models directly, maybe we can take an approach that the **Neural Turing Machine (NTM)** did and try to create a gadget (in NTM it represents memory for read and write) and for us the gadget can be think of as teh LC-NE system.
-- It need to be differentiable so everything can be back propoagted and we can see if the network can learn to use this controller (LC-NE system) to achieve  teh effect we see in the samples.
+- It need to be differentiable so everything can be back propoagted and we can see if the network can learn to use this controller (LC-NE system) to achieve the effect we see in the samples.
 
 ## Preliminary Results:
 We provide an [sample notebook](https://github.com/KevinBian107/Blue-Dot-Project/blob/main/simulate.ipynb)s for demostration purposes. Now  we have a sand-box that has been setup  to implement all kinds of cool neuroscience ideas that we can do:
@@ -36,8 +36,8 @@ Interestingly, we have found that the rpincipal component representation of our 
 The [openneuro](https://openneuro.org/) is a very good source of data, we are specifically using ["Locus coeruleus activity strengthens prioritized memories under arousal"](https://openneuro.org/datasets/ds002011/versions/1.0.0). Please do not push the data to GitHub, rather all work on it locally.
 
 ## Reference Literatures
-- Mechanistic Model of Rumination & Cognition: https://onlinelibrary.wiley.com/doi/full/10.1111/tops.12318
-- LC & Anxiety: https://pmc.ncbi.nlm.nih.gov/articles/PMC7479871/pdf/10.1177_2398212820930321.pdf 
-- Computational Perspective of LC: https://www.sciencedirect.com/science/article/pii/S2352154624000585 
-- Rumination Derails Reinforcement Learning With Possible Implications for Ineffective Behavior: https://pmc.ncbi.nlm.nih.gov/articles/PMC9354806/pdf/nihms-1741796.pdf 
-- LC-NE Drive RL: https://www.biorxiv.org/content/10.1101/2022.12.08.519670v1.full 
+- [Mechanistic Model of Rumination & Cognition](https://onlinelibrary.wiley.com/doi/full/10.1111/tops.12318)
+- [LC & Anxiety](https://pmc.ncbi.nlm.nih.gov/articles/PMC7479871/pdf/10.1177_2398212820930321.pdf)
+- [Computational Perspective of LC](https://www.sciencedirect.com/science/article/pii/S2352154624000585)
+- [Rumination Derails Reinforcement Learning With Possible Implications for Ineffective Behavior](https://pmc.ncbi.nlm.nih.gov/articles/PMC9354806/pdf/nihms-1741796.pdf)
+- [LC-NE Drive RL](https://www.biorxiv.org/content/10.1101/2022.12.08.519670v1.full)
