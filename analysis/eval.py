@@ -79,7 +79,6 @@ def evaluate_model(model, X_test, Y_test, df_clean, scaler_Y=None):
     df_predictions = pd.DataFrame({'PupilPred': Y_pred.flatten()})
     df_actual = df_clean[['Event_PupilDilation']].reset_index(drop=True)
 
-    # Ensure matching length
     min_length = min(len(df_actual), len(df_predictions))
     df_predictions = df_predictions.iloc[:min_length]
     df_actual = df_actual.iloc[:min_length]

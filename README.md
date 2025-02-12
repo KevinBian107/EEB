@@ -20,7 +20,7 @@ Instead of modifying the models directly, maybe we can take an approach that the
 - It need to be differentiable so everything can be back propoagted and we can see if the network can learn to use this controller (LC-NE system) to achieve  teh effect we see in the samples.
 
 ## Preliminary Results:
-Now  we have a sand-box that has been setup  to implement all kinds of cool neuroscience ideas that we can do:
+We provide an [sample notebook](https://github.com/KevinBian107/Blue-Dot-Project/blob/main/simulate.ipynb)s for demostration purposes. Now  we have a sand-box that has been setup  to implement all kinds of cool neuroscience ideas that we can do:
 
 Interestingly, we have found that the rpincipal component representation of our customized LCNE model seems to be more structured than the similar trained one (even better fitted model) of the feedforward network.
 

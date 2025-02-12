@@ -13,6 +13,21 @@ from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+def perform_pca_and_plot(activations, title, hue_labels):
+    '''do batch pca plotting'''
+    
+    pca = PCA(n_components=2)
+    act_pca = pca.fit_transform(activations)
+    explained_variance = pca.explained_variance_ratio_ * 100
+
+    plt.figure(figsize=(6, 5))
+    sns.scatterplot(x=act_pca[:, 0], y=act_pca[:, 1], hue=hue_labels, palette="viridis", alpha=0.7)
+    plt.title(f"{title}\nExplained Variance: PC1={explained_variance[0]:.2f}%, PC2={explained_variance[1]:.2f}%")
+    plt.xlabel(f"PCA Component 1 ({explained_variance[0]:.2f}% Variance)")
+    plt.ylabel(f"PCA Component 2 ({explained_variance[1]:.2f}% Variance)")
+    plt.legend(title="Condition", bbox_to_anchor=(1.05, 1), loc="upper left")
+    plt.show()
+
 
 def pca_gadget(model, X_tensor, df_clean):
     '''PCA analysis for LSTM Gadget model'''
@@ -161,28 +176,24 @@ def pca_feed_forward(model, X_tensor, df_behavior):
 
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
 
-    # PCA Layer 1
     sns.scatterplot(x=act1_pca[:, 0], y=act1_pca[:, 1], hue=df_filtered["Condition"],
                     palette="viridis", alpha=0.7, ax=axes[0, 0])
     axes[0, 0].set_title(f"PCA Projection of Layer 1 Activations\nExplained Variance: PC1={explained_variance1[0]:.2f}%, PC2={explained_variance1[1]:.2f}%")
     axes[0, 0].set_xlabel(f"PCA Component 1 ({explained_variance1[0]:.2f}% Variance)")
     axes[0, 0].set_ylabel(f"PCA Component 2 ({explained_variance1[1]:.2f}% Variance)")
 
-    # PCA Layer 2
     sns.scatterplot(x=act2_pca[:, 0], y=act2_pca[:, 1], hue=df_filtered["Condition"],
                     palette="viridis", alpha=0.7, ax=axes[0, 1])
     axes[0, 1].set_title(f"PCA Projection of Layer 2 Activations\nExplained Variance: PC1={explained_variance2[0]:.2f}%, PC2={explained_variance2[1]:.2f}%")
     axes[0, 1].set_xlabel(f"PCA Component 1 ({explained_variance2[0]:.2f}% Variance)")
     axes[0, 1].set_ylabel(f"PCA Component 2 ({explained_variance2[1]:.2f}% Variance)")
 
-    # t-SNE Layer 1
     sns.scatterplot(x=act1_tsne[:, 0], y=act1_tsne[:, 1], hue=df_filtered["Condition"],
                     palette="viridis", alpha=0.7, ax=axes[1, 0])
     axes[1, 0].set_title("t-SNE Projection of Layer 1 Activations")
     axes[1, 0].set_xlabel("t-SNE Component 1")
     axes[1, 0].set_ylabel("t-SNE Component 2")
 
-    # t-SNE Layer 2
     sns.scatterplot(x=act2_tsne[:, 0], y=act2_tsne[:, 1], hue=df_filtered["Condition"],
                     palette="viridis", alpha=0.7, ax=axes[1, 1])
     axes[1, 1].set_title("t-SNE Projection of Layer 2 Activations")
@@ -199,50 +210,40 @@ def pca_lcne(model, X_tensor, df_clean):
     Extracts activations, performs PCA and t-SNE, applies clustering, and visualizes results.
     """
 
-    # Run model inference and extract activations
     with torch.no_grad():
         prev_LC = torch.zeros(X_tensor.shape[0], model.hidden_dim)
         prev_Cortex = torch.zeros(X_tensor.shape[0], model.hidden_dim)
         
         LC_act, NE_act, C_act, Pupil_pred, LC_raw, NE_raw, C_raw = model(X_tensor, prev_LC, prev_Cortex, return_activations=True)
 
-    # Convert activations to numpy arrays
     act_lc = LC_act.cpu().numpy()
     act_ne = NE_act.cpu().numpy()
     act_cortex = C_act.cpu().numpy()
 
-    # Create DataFrame for analysis
-    df_activations = pd.DataFrame({
-        'LC_Mean': act_lc.mean(axis=1),
-        'NE_Mean': act_ne.mean(axis=1),
-        'Cortex_Mean': act_cortex.mean(axis=1),
-        'PupilPred': Pupil_pred.cpu().numpy().squeeze(),
-        'ActualPupil': df_clean['Event_PupilDilation'].values  
-    })
+    # df_activations = pd.DataFrame({
+    #     'LC_Mean': act_lc.mean(axis=1),
+    #     'NE_Mean': act_ne.mean(axis=1),
+    #     'Cortex_Mean': act_cortex.mean(axis=1),
+    #     'PupilPred': Pupil_pred.cpu().numpy().squeeze(),
+    #     'ActualPupil': df_clean['Event_PupilDilation'].values  
+    # })
 
-    # Concatenate activations for combined analysis
     act_combined = np.hstack([act_lc, act_ne, act_cortex])
     
-    # Standardize data
     scaler = StandardScaler()
     act_combined_scaled = scaler.fit_transform(act_combined)
-
-    # Perform PCA
     pca = PCA(n_components=2)
     act_pca = pca.fit_transform(act_combined_scaled)
     explained_variance = pca.explained_variance_ratio_ * 100
 
-    # Perform t-SNE
     tsne = TSNE(n_components=2, perplexity=30, random_state=42)
     act_tsne = tsne.fit_transform(act_pca)
 
-    # Apply K-Means clustering
     num_clusters = 2
     kmeans = KMeans(n_clusters=num_clusters, random_state=42, n_init=10)
     clusters_pca = kmeans.fit_predict(act_pca)
     clusters_tsne = kmeans.predict(act_tsne)
 
-    # Plot PCA and t-SNE projections
     fig, axes = plt.subplots(2, 3, figsize=(20, 12))
     axes = axes.flatten()
     

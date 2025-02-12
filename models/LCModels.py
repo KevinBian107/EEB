@@ -1,10 +1,41 @@
 import torch
 import torch.nn as nn
 
-class LCNECortexFCN(nn.Module):
-    '''Vanilla FCN based LCNE model'''
+class FeedForwardNN(nn.Module):
+    '''Simple feedforward network with intermediate activation extraction'''
+    def __init__(self, input_size):
+        super(FeedForwardNN, self).__init__()
+        self.fc1 = nn.Linear(input_size, 32)
+        self.fc2 = nn.Linear(32, 16)
+        self.fc3 = nn.Linear(16, 1)
+
+    def forward(self, x, return_activations=False):
+        act1 = torch.relu(self.fc1(x))
+        act2 = torch.relu(self.fc2(act1))
+        output = self.fc3(act2)
+
+        if return_activations:
+            return output, act1, act2
+        return output
+
+class RecurrentNet(nn.Module): 
+    '''An RNN-based model for predicting pupil dilation'''
+    def __init__(self, input_size, hidden_size=32):
+        super().__init__()
+        self.hidden_size = hidden_size
+        self.rnn = nn.RNN(input_size, hidden_size, batch_first=True)  # batch_first=True ensures (batch, seq, feature)
+        self.fc = nn.Linear(hidden_size, 1)
+
+    def forward(self, x):
+        h0 = torch.zeros(1, x.size(0), self.hidden_size, device=x.device)  # Initialize hidden state
+        out, _ = self.rnn(x, h0)  # x shape: (batch_size, seq_length=1, input_size)
+        out = self.fc(out[:, -1, :])  # Take last timestep output
+        return out
+
+class UntrainedLCFCN(nn.Module):
+    '''Untrained vanilla FCN based LCNE model'''
     def __init__(self, lambda_cortex):
-        super(LCNECortexFCN, self).__init__()
+        super(UntrainedLCFCN, self).__init__()
         
         self.lambda_cortex = lambda_cortex
         self.W_x = nn.Parameter(torch.tensor(0.5))  # Input weight to LC
@@ -22,10 +53,10 @@ class LCNECortexFCN(nn.Module):
         
         return LC_t, NE_t, C_t
 
-class LCNECortexRNN(nn.Module):
-    '''An RNN based LCNE model'''
+class UntrainedLCRNN(nn.Module):
+    '''Untrained RNN based LCNE model'''
     def __init__(self, lambda_cortex, hidden_size=16):
-        super(LCNECortexRNN, self).__init__()
+        super(UntrainedLCRNN, self).__init__()
         self.lambda_cortex = lambda_cortex
         self.hidden_size = hidden_size
         
@@ -180,36 +211,4 @@ class LCNECortexLSTM(nn.Module):
         if return_activations:
             return LC_t, NE_t, C_t, Pupil_t, forget_gate, input_gate, output_gate, cell_state
         return LC_t, NE_t, C_t, Pupil_t, cell_state
-
-
-class FeedForwardNN(nn.Module):
-    '''Simple feedforward network with intermediate activation extraction'''
-    def __init__(self, input_size):
-        super(FeedForwardNN, self).__init__()
-        self.fc1 = nn.Linear(input_size, 32)
-        self.fc2 = nn.Linear(32, 16)
-        self.fc3 = nn.Linear(16, 1)
-
-    def forward(self, x, return_activations=False):
-        act1 = torch.relu(self.fc1(x))
-        act2 = torch.relu(self.fc2(act1))
-        output = self.fc3(act2)
-
-        if return_activations:
-            return output, act1, act2
-        return output
-
-class RecurrentNet(nn.Module): 
-    '''An RNN-based model for predicting pupil dilation'''
-    def __init__(self, input_size, hidden_size=32):
-        super().__init__()
-        self.hidden_size = hidden_size
-        self.rnn = nn.RNN(input_size, hidden_size, batch_first=True)  # batch_first=True ensures (batch, seq, feature)
-        self.fc = nn.Linear(hidden_size, 1)
-
-    def forward(self, x):
-        h0 = torch.zeros(1, x.size(0), self.hidden_size, device=x.device)  # Initialize hidden state
-        out, _ = self.rnn(x, h0)  # x shape: (batch_size, seq_length=1, input_size)
-        out = self.fc(out[:, -1, :])  # Take last timestep output
-        return out
 

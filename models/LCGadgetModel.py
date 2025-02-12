@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 
-
 class LCNEGadget(nn.Module):
     """A differentiable LC-NE inspired neuromodulation unit"""
     def __init__(self, hidden_dim):
@@ -61,3 +60,57 @@ class LSTMGadget(nn.Module):
         output = self.output_layer(modulated_hidden)
 
         return output, LC_t, NE_t, forget_signal, input_signal, output_signal
+
+
+# class LSTMGadget(nn.Module):
+#     """LSTM actively controls when to use the LC-NE neuromodulation gadget"""
+#     def __init__(self, input_dim, hidden_dim):
+#         super(LSTMGadget, self).__init__()
+#         self.hidden_dim = hidden_dim
+
+#         self.lstm = nn.LSTM(input_dim, hidden_dim, batch_first=True)
+#         self.lcne_gadget = LCNEGadget(hidden_dim)
+
+#         self.output_layer = nn.Linear(hidden_dim, 1)
+
+#     def forward(self, x):
+#         batch_size, seq_len, _ = x.shape
+#         h_t = torch.zeros(1, batch_size, self.hidden_dim)
+#         c_t = torch.zeros(1, batch_size, self.hidden_dim)
+
+#         outputs = []
+#         LC_all, NE_all = [], []
+#         forget_signals, input_signals, output_signals = [], [], []
+
+#         for t in range(seq_len):
+#             x_t = x[:, t, :].unsqueeze(1)  # Extract single time step input
+
+#             lstm_out, (h_t, c_t) = self.lstm(x_t, (h_t, c_t))
+
+#             # LSTM decides when to use the gadget (hidden state -> gadget)
+#             LC_t, NE_t, forget_signal, input_signal, output_signal = self.lcne_gadget(h_t.squeeze(0))
+
+#             # LSTM memory updates based on neuromodulation
+#             c_t = forget_signal * c_t + input_signal * NE_t  # Cortex memory update
+#             h_t = output_signal * h_t  # Output gate modulates memory expression
+
+#             # Compute final output
+#             output = self.output_layer(h_t)
+
+#             # Store results
+#             outputs.append(output)
+#             LC_all.append(LC_t)
+#             NE_all.append(NE_t)
+#             forget_signals.append(forget_signal)
+#             input_signals.append(input_signal)
+#             output_signals.append(output_signal)
+
+#         # Stack outputs across time axis
+#         outputs = torch.cat(outputs, dim=1)
+#         LC_all = torch.cat(LC_all, dim=1)
+#         NE_all = torch.cat(NE_all, dim=1)
+#         forget_signals = torch.cat(forget_signals, dim=1)
+#         input_signals = torch.cat(input_signals, dim=1)
+#         output_signals = torch.cat(output_signals, dim=1)
+
+#         return outputs, LC_all, NE_all, forget_signals, input_signals, output_signals

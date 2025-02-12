@@ -83,10 +83,9 @@ def train_vanilla_lc_model(X_train, Y_train, epochs):
     
     return model
 
-def train_lstm_lc_model(X_train, Y_train, epochs):
+def train_lstm_lc_model(X_train, Y_train, epochs, hidden_dim):
     '''Training LSTM LC model'''
     input_dim = X_train.shape[1]
-    hidden_dim = 8
     model = LCNECortexLSTM(input_dim=input_dim, hidden_dim=hidden_dim)
     optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-5)
     loss_fn = nn.SmoothL1Loss()
@@ -116,17 +115,16 @@ def train_lstm_lc_model(X_train, Y_train, epochs):
     
     return model
 
-def train_neural_gadget_model(X_train, Y_train, epochs):
+def train_neural_gadget_model(X_train, Y_train, epochs, hidden_dim):
     '''Training LSTM with LC-NE Gadget model'''
     input_dim = X_train.shape[1]
-    hidden_dim = 8
     model = LSTMGadget(input_dim=input_dim, hidden_dim=hidden_dim)
 
     optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-5)
     loss_fn = nn.SmoothL1Loss()
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5, verbose=True)
     batch_size = 32
-    patience = 1000 
+    patience = 1000
     best_loss = float('inf')
     stopping_counter = 0
 
@@ -147,14 +145,14 @@ def train_neural_gadget_model(X_train, Y_train, epochs):
         
         scheduler.step(loss)
 
-        # if loss.item() < best_loss:
-        #     best_loss = loss.item()
-        #     stopping_counter = 0
-        # else:
-        #     stopping_counter += 1
-        #     if stopping_counter >= patience:
-        #         print(f"Early stopping at epoch {epoch}")
-        #         break
+        if loss.item() < best_loss:
+            best_loss = loss.item()
+            stopping_counter = 0
+        else:
+            stopping_counter += 1
+            if stopping_counter >= patience:
+                print(f"Early stopping at epoch {epoch}")
+                break
 
         if epoch % 100 == 0:
             lr = optimizer.param_groups[0]['lr']
