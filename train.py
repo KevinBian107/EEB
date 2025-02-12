@@ -25,6 +25,8 @@ def train_feed_forward_nn(X_train, Y_train, epochs):
         if epoch % 100 == 0:
             print(f"Epoch {epoch}, Loss: {loss.item()}")
     
+    print("Training complete!")
+    
     return model
 
 def train_vanilla_rnn(X_train, Y_train, epochs):
@@ -49,6 +51,8 @@ def train_vanilla_rnn(X_train, Y_train, epochs):
 
         if epoch % 100 == 0:
             print(f"Epoch {epoch}, Loss: {loss.item():.4f}")
+    
+    print("Training complete!")
     
     return model
 
@@ -76,10 +80,12 @@ def train_vanilla_lc_model(X_train, Y_train, epochs):
         loss.backward()
         optimizer.step()
         
-        # scheduler.step(loss)
+        scheduler.step(loss)
 
         if epoch % 100 == 0:
             print(f"Epoch {epoch}, Loss: {loss.item()}")
+    
+    print("Training complete!")
     
     return model
 
@@ -112,6 +118,8 @@ def train_lstm_lc_model(X_train, Y_train, epochs, hidden_dim):
 
         if epoch % 100 == 0:
             print(f"Epoch {epoch}, Loss: {loss.item()}")
+    
+    print("Training complete!")
     
     return model
 
