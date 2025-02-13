@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 def perform_pca_and_plot(activations, title, hue_labels):
-    '''do batch pca plotting'''
+    '''Do batch PCA plotting, helper graphing functions'''
     
     pca = PCA(n_components=2)
     act_pca = pca.fit_transform(activations)
@@ -30,7 +30,7 @@ def perform_pca_and_plot(activations, title, hue_labels):
 
 
 def pca_gadget(model, X_tensor, df_clean):
-    '''PCA analysis for LSTM Gadget model'''
+    '''PCA analysis for LC LSTM Gadget model'''
     model.eval()
     with torch.no_grad():
         X_test = X_tensor.unsqueeze(1)  # Ensure (batch, seq_len, features)
@@ -153,7 +153,7 @@ def pca_lcne_lstm(model, X_tensor, df_clean):
 
 def pca_feed_forward(model, X_tensor, df_behavior):
     """
-    Extract ff_nn activations, apply PCA and t-SNE, and visualize them side by side.
+    Extract feed forward network's activations, then apply PCA and t-SNE and visualize.
     """
     with torch.no_grad():
         predictions, act1, act2 = model(X_tensor, return_activations=True)
@@ -207,7 +207,7 @@ def pca_feed_forward(model, X_tensor, df_behavior):
 
 def pca_lcne(model, X_tensor, df_clean):
     """
-    Extracts activations, performs PCA and t-SNE, applies clustering, and visualizes results.
+    For the Vanilla LC feedforward models, extracts activations and performs PCA, t-SNE, and applies clustering to visualize.
     """
 
     with torch.no_grad():
@@ -272,7 +272,7 @@ def pca_lcne(model, X_tensor, df_clean):
     plt.show()
 
 def firing_lcne(model, X_test, df_clean):
-    '''Firing rate analysis for LCNE model'''
+    '''Firing rate analysis for different LC models'''
 
     with torch.no_grad():
         LC_activations, NE_activations, C_activations, Pupil_pred = model(
@@ -335,3 +335,80 @@ def firing_lcne(model, X_test, df_clean):
     print(f"NE Activation: {ne_corr:.3f}")
     print(f"Cortex Activation: {cortex_corr:.3f}")
     print(f"Predicted Pupil Dilation: {pupil_pred_corr:.3f}")
+
+
+def pca_lstm(model, X_test, df_clean):
+    '''PCA and t-SNE analysis for LSTM model hidden & cell states'''
+
+    # Ensure input shape is (batch_size, seq_length, input_dim)
+    if len(X_test.shape) == 2:
+        X_test = X_test.unsqueeze(1)
+
+    model.eval()
+    with torch.no_grad():
+        _, hidden_states, cell_states = model(X_test)
+
+    hidden_states_np = hidden_states.cpu().numpy()
+    cell_states_np = cell_states.cpu().numpy()
+
+    scaler = StandardScaler()
+    hidden_states_np = scaler.fit_transform(hidden_states_np)
+    cell_states_np = scaler.fit_transform(cell_states_np)
+
+    pca_hidden = PCA(n_components=2)
+    hidden_pca = pca_hidden.fit_transform(hidden_states_np)
+    explained_variance_hidden = pca_hidden.explained_variance_ratio_ * 100
+
+    pca_cell = PCA(n_components=2)
+    cell_pca = pca_cell.fit_transform(cell_states_np)
+    explained_variance_cell = pca_cell.explained_variance_ratio_ * 100
+    
+    min_length = min(hidden_pca.shape[0], cell_pca.shape[0], len(df_clean["Condition"]))
+    hidden_pca = hidden_pca[:min_length]
+    cell_pca = cell_pca[:min_length]
+    df_clean = df_clean.iloc[:min_length]
+
+    tsne = TSNE(n_components=2, perplexity=30, random_state=42)
+    hidden_tsne = tsne.fit_transform(hidden_pca)
+    cell_tsne = tsne.fit_transform(cell_pca)
+
+    fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+
+    sns.scatterplot(x=hidden_pca[:, 0], y=hidden_pca[:, 1], hue=df_clean["Condition"], palette="viridis", alpha=0.7, ax=axes[0])
+    axes[0].set_title(f"LSTM Hidden State PCA\nPC1={explained_variance_hidden[0]:.2f}%, PC2={explained_variance_hidden[1]:.2f}%")
+    axes[0].set_xlabel(f"PCA Component 1 ({explained_variance_hidden[0]:.2f}% Variance)")
+    axes[0].set_ylabel(f"PCA Component 2 ({explained_variance_hidden[1]:.2f}% Variance)")
+    axes[0].legend(title="Condition", bbox_to_anchor=(1.05, 1), loc="upper left")
+
+    sns.scatterplot(x=cell_pca[:, 0], y=cell_pca[:, 1], hue=df_clean["Condition"], palette="viridis", alpha=0.7, ax=axes[1])
+    axes[1].set_title(f"LSTM Cell State PCA\nPC1={explained_variance_cell[0]:.2f}%, PC2={explained_variance_cell[1]:.2f}%")
+    axes[1].set_xlabel(f"PCA Component 1 ({explained_variance_cell[0]:.2f}% Variance)")
+    axes[1].set_ylabel(f"PCA Component 2 ({explained_variance_cell[1]:.2f}% Variance)")
+    axes[1].legend(title="Condition", bbox_to_anchor=(1.05, 1), loc="upper left")
+
+    plt.tight_layout()
+    plt.show()
+
+    fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+
+    sns.scatterplot(x=hidden_tsne[:, 0], y=hidden_tsne[:, 1], hue=df_clean["Condition"], palette="viridis", alpha=0.7, ax=axes[0])
+    axes[0].set_title("LSTM Hidden State t-SNE Projection")
+    axes[0].set_xlabel("t-SNE Component 1")
+    axes[0].set_ylabel("t-SNE Component 2")
+    axes[0].legend(title="Condition", bbox_to_anchor=(1.05, 1), loc="upper left")
+
+    sns.scatterplot(x=cell_tsne[:, 0], y=cell_tsne[:, 1], hue=df_clean["Condition"], palette="viridis", alpha=0.7, ax=axes[1])
+    axes[1].set_title("LSTM Cell State t-SNE Projection")
+    axes[1].set_xlabel("t-SNE Component 1")
+    axes[1].set_ylabel("t-SNE Component 2")
+    axes[1].legend(title="Condition", bbox_to_anchor=(1.05, 1), loc="upper left")
+
+    plt.tight_layout()
+    plt.show()
+
+    corr_hidden, _ = pearsonr(hidden_states_np.mean(axis=1), df_clean["Event_PupilDilation"])
+    corr_cell, _ = pearsonr(cell_states_np.mean(axis=1), df_clean["Event_PupilDilation"])
+    
+    print(f"Pearson Correlation with Actual Pupil Dilation:")
+    print(f"Hidden State Mean: {corr_hidden:.3f}")
+    print(f"Cell State Mean: {corr_cell:.3f}")

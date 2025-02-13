@@ -7,8 +7,9 @@ from scipy.stats import pearsonr
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from models.LCModels import LCNECortexFitter, FeedForwardNN, RecurrentNet, LCNECortexLSTM
-from models.LCGadgetModel import LSTMGadget
+from models.ClassicModels import FeedForwardNN, RecurrentNet, LSTMModel
+from models.LCModels import LCNECortexFitter, LCNECortexLSTM
+from models.LCGadgetModels import LSTMGadget
 
 from scipy.stats import pearsonr
 
@@ -55,16 +56,24 @@ def evaluate_model(model, X_test, Y_test, df_clean, scaler_Y=None):
             Y_pred = scaler_Y.inverse_transform(Y_pred).reshape(-1, 1)
 
     # ---- LCNECortex Variants (LSTM) ---- #
-    elif isinstance(model, (LCNECortexLSTM, LCNECortexFitter, LSTMGadget)):
+    elif isinstance(model, (LCNECortexLSTM, LCNECortexFitter, LSTMGadget, LSTMModel)):
         prev_LC = torch.zeros(batch_size, model.hidden_dim)
         prev_Cortex = torch.zeros(batch_size, model.hidden_dim)
         cell_state = torch.zeros(batch_size, model.hidden_dim)
 
         with torch.no_grad():
-            if isinstance(model, LSTMGadget):
+            
+            if isinstance(model, LSTMModel):
+                if len(X_test.shape) == 2:
+                    X_test = X_test.unsqueeze(1)  # Ensure it has (batch_size, seq_length, input_dim)
+                Pupil_pred, _, _ = model(X_test)
+                
+            elif isinstance(model, LSTMGadget):
                 Pupil_pred, _, _, _, _, _ = model(X_test.unsqueeze(1))
+                
             elif isinstance(model, LCNECortexLSTM):
                 _, _, _, Pupil_pred, _ = model(X_test, prev_LC, prev_Cortex, cell_state)
+                
             else:
                 _, _, _, Pupil_pred = model(X_test, prev_LC, prev_Cortex)
 

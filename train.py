@@ -5,8 +5,9 @@ import torch.optim as optim
 import torch.nn as nn
 import torch
 
-from models.LCModels import LCNECortexFitter, FeedForwardNN, RecurrentNet, LCNECortexLSTM
-from models.LCGadgetModel import LSTMGadget
+from models.ClassicModels import FeedForwardNN, RecurrentNet, LSTMModel
+from models.LCModels import LCNECortexFitter, LCNECortexLSTM
+from models.LCGadgetModels import LSTMGadget
 
 def train_feed_forward_nn(X_train, Y_train, epochs):
     '''Training feed forward neural network'''
@@ -55,6 +56,42 @@ def train_vanilla_rnn(X_train, Y_train, epochs):
     print("Training complete!")
     
     return model
+
+
+def train_vanilla_lstm(X_train, Y_train, epochs, hidden_dim):
+    '''Training vanilla LSTM'''
+    
+    input_dim = X_train.shape[1]
+    num_layers = 2
+    learning_rate = 0.001
+    batch_size = 32
+
+    model = LSTMModel(input_dim, hidden_dim)
+    loss_fn = nn.MSELoss()
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=1e-5)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5, verbose=True)
+
+    for epoch in range(epochs):
+        optimizer.zero_grad()
+        
+        if len(X_train.shape) == 2:
+            X_train = X_train.unsqueeze(1)  # Convert to (batch_size, seq_length=1, input_dim)
+
+        idx = torch.randint(0, X_train.shape[0], (batch_size,))
+        X_batch, Y_batch = X_train[idx], Y_train[idx]
+
+        Pupil_pred, _, _= model(X_batch)
+
+        loss = loss_fn(Pupil_pred, Y_batch.unsqueeze(1))
+        loss.backward()
+        optimizer.step()
+        scheduler.step(loss)
+
+        if epoch % 100 == 0:
+            print(f"Epoch {epoch}, Loss: {loss.item():.6f}")
+    print("Training complete!")
+    return model
+
 
 def train_vanilla_lc_model(X_train, Y_train, epochs):
     '''Training vanilla LC model'''
