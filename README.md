@@ -23,7 +23,7 @@ At last, we can use this fitteed model to prompt them under certain `experimenta
 ## Preliminary Results:
 We provide an [sample notebook](https://github.com/KevinBian107/Blue-Dot-Project/blob/main/simulate.ipynb) for demostration purposes. Now  we have a sand-box that has been setup  to implement all kinds of cool neuroscience ideas that we can do.
 
-| FF PCA clusters of different activation layers |
+| FF Gadget Model with PCA clusters of different activation layers |
 |--------------|
 | ![img](results/gadget_results.png)|
 
