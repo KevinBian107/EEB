@@ -7,7 +7,7 @@ import torch
 
 from models.ClassicModels import FeedForwardNN, RecurrentNet, LSTMModel
 from models.LCModels import LCNECortexFitter, LCNECortexLSTM
-from models.LCGadgetModels import LSTMGadget
+from models.LCGadgetModels import LSTMGadget, FFControllerWithLCNEGadget
 
 def train_feed_forward_nn(X_train, Y_train, epochs):
     '''Training feed forward neural network'''
@@ -203,6 +203,36 @@ def train_neural_gadget_model(X_train, Y_train, epochs, hidden_dim):
             lr = optimizer.param_groups[0]['lr']
             print(f"Epoch {epoch}, Loss: {loss.item():.6f}, LR: {lr:.6f}")
 
+    print("Training complete!")
+    
+    return model
+
+
+def train_ff_controller(X_train, Y_train, epochs, hidden_dim):
+    """Train the FF Controller model with LC-NE gadget"""
+    
+    input_dim = X_train.shape[1]
+    batch_size = 32
+    model = FFControllerWithLCNEGadget(input_dim, hidden_dim)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-5)
+    loss_fn = nn.SmoothL1Loss()
+    
+    for epoch in range(epochs):
+        optimizer.zero_grad()
+        
+        idx = torch.randint(0, X_train.shape[0], (batch_size,))
+        X_batch, Y_batch = X_train[idx], Y_train[idx]
+        
+        Pupil_pred, _, _, _, _, _ = model(X_batch)
+
+        loss = loss_fn(Pupil_pred, Y_batch.unsqueeze(1))
+
+        loss.backward()
+        optimizer.step()
+
+        if epoch % 100 == 0:
+            print(f"Epoch {epoch}, Loss: {loss.item()}")
+    
     print("Training complete!")
     
     return model

@@ -9,7 +9,7 @@ import seaborn as sns
 
 from models.ClassicModels import FeedForwardNN, RecurrentNet, LSTMModel
 from models.LCModels import LCNECortexFitter, LCNECortexLSTM
-from models.LCGadgetModels import LSTMGadget
+from models.LCGadgetModels import LSTMGadget, FFControllerWithLCNEGadget
 
 from scipy.stats import pearsonr
 
@@ -47,35 +47,41 @@ def evaluate_model(model, X_test, Y_test, df_clean, scaler_Y=None):
             Y_test_actual = scaler_Y.inverse_transform(Y_test_actual)
 
     # ---- RECURRENT NN ---- #
-    elif isinstance(model, RecurrentNet):
+    elif isinstance(model, (RecurrentNet, LSTMModel)):
         X_rnn = X_test.unsqueeze(1) 
+        
         with torch.no_grad():
-            Y_pred = model(X_rnn).cpu().numpy()
+            if isinstance(model, RecurrentNet):
+                Y_pred = model(X_rnn).cpu().numpy()
+                
+            elif isinstance(model, LSTMModel):
+                if len(X_test.shape) == 2:
+                    X_test = X_test.unsqueeze(1)  # Ensure it has (batch_size, seq_length, input_dim)
+                Y_pred, _, _ = model(X_test)
 
         if scaler_Y:
             Y_pred = scaler_Y.inverse_transform(Y_pred).reshape(-1, 1)
 
-    # ---- LCNECortex Variants (LSTM) ---- #
-    elif isinstance(model, (LCNECortexLSTM, LCNECortexFitter, LSTMGadget, LSTMModel)):
+    # ---- LCNECortex Variants ---- #
+    elif isinstance(model, (LCNECortexLSTM, LSTMGadget, LCNECortexFitter, FFControllerWithLCNEGadget)):
         prev_LC = torch.zeros(batch_size, model.hidden_dim)
         prev_Cortex = torch.zeros(batch_size, model.hidden_dim)
         cell_state = torch.zeros(batch_size, model.hidden_dim)
 
         with torch.no_grad():
             
-            if isinstance(model, LSTMModel):
-                if len(X_test.shape) == 2:
-                    X_test = X_test.unsqueeze(1)  # Ensure it has (batch_size, seq_length, input_dim)
-                Pupil_pred, _, _ = model(X_test)
+            if isinstance(model, LCNECortexLSTM):
+                _, _, _, Pupil_pred, _ = model(X_test, prev_LC, prev_Cortex, cell_state)
                 
             elif isinstance(model, LSTMGadget):
                 Pupil_pred, _, _, _, _, _ = model(X_test.unsqueeze(1))
-                
-            elif isinstance(model, LCNECortexLSTM):
-                _, _, _, Pupil_pred, _ = model(X_test, prev_LC, prev_Cortex, cell_state)
-                
-            else:
+            
+            elif isinstance(model, FFControllerWithLCNEGadget):
+                Pupil_pred, _, _, _, _, _ = model(X_test)
+            
+            elif isinstance(model, LCNECortexFitter):
                 _, _, _, Pupil_pred = model(X_test, prev_LC, prev_Cortex)
+                
 
         Y_pred = Pupil_pred.cpu().numpy().reshape(-1, 1)
         if scaler_Y:

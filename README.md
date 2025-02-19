@@ -24,14 +24,9 @@ At last, we can use this fitteed model to prompt them under certain `experimenta
 We provide an [sample notebook](https://github.com/KevinBian107/Blue-Dot-Project/blob/main/simulate.ipynb) for demostration purposes. Now  we have a sand-box that has been setup  to implement all kinds of cool neuroscience ideas that we can do.
 
 | FF PCA clusters of different activation layers | LC-FF PCA clusters of different activations |
-|--------------|---------------|
-| ![img](results/ff_results.png) | ![img](results/lc_ff_results.png) |
+|--------------|
+| ![img](results/gadget_results.png)|
 
-| LC-Gadget PCA clusters of different activations + hidden states  | LC-LSTM PCA clusters of different activations + hidden states |
-|--------------|---------------|
-| ![img](results/lc_lstm_results.png) | ![img](results/lc_gadget_results.png) |
-
-Interestingly, we have found that the rpincipal component representation of our customized LCNE model seems to be more structured than the similar trained one (even better fitted model) of the feedforward network.
 
 ## Reference Literatures
 Data Source:
