@@ -7,7 +7,7 @@ import torch
 
 from models.ClassicModels import FeedForwardNN, RecurrentNet, LSTMModel
 from models.LCModels import LCNECortexFitter, LCNECortexLSTM
-from models.LCGadgetModels import LSTMGadget, FFControllerWithLCNEGadget
+from models.LCGadgetModels import LSTMGadgetController, FFGadgetController
 
 def train_feed_forward_nn(X_train, Y_train, epochs):
     '''Training feed forward neural network'''
@@ -160,10 +160,10 @@ def train_lstm_lc_model(X_train, Y_train, epochs, hidden_dim):
     
     return model
 
-def train_neural_gadget_model(X_train, Y_train, epochs, hidden_dim):
+def train_lstm_controller(X_train, Y_train, epochs, hidden_dim):
     '''Training LSTM with LC-NE Gadget model'''
     input_dim = X_train.shape[1]
-    model = LSTMGadget(input_dim=input_dim, hidden_dim=hidden_dim)
+    model = LSTMGadgetController(input_dim=input_dim, hidden_dim=hidden_dim)
 
     optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-5)
     loss_fn = nn.SmoothL1Loss()
@@ -213,7 +213,7 @@ def train_ff_controller(X_train, Y_train, epochs, hidden_dim):
     
     input_dim = X_train.shape[1]
     batch_size = 32
-    model = FFControllerWithLCNEGadget(input_dim, hidden_dim)
+    model = FFGadgetController(input_dim, hidden_dim)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-5)
     loss_fn = nn.SmoothL1Loss()
     

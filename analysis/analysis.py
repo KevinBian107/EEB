@@ -29,7 +29,6 @@ def perform_pca_and_plot(activations, title, hue_labels):
     plt.show()
 
 
-
 def pca_feed_forward(model, X_tensor, df_behavior):
     """
     Extract feed forward network's activations, then apply PCA and t-SNE and visualize.
@@ -160,6 +159,65 @@ def pca_lstm(model, X_test, df_clean):
     print(f"Cell State Mean: {corr_cell:.3f}")
     
 
+def pca_lcne(model, X_tensor, df_clean):
+    """
+    For the Vanilla LC feedforward models, extracts activations and performs PCA, t-SNE, and applies clustering to visualize.
+    """
+
+    with torch.no_grad():
+        prev_LC = torch.zeros(X_tensor.shape[0], model.hidden_dim)
+        prev_Cortex = torch.zeros(X_tensor.shape[0], model.hidden_dim)
+        
+        LC_act, NE_act, C_act, Pupil_pred, LC_raw, NE_raw, C_raw = model(X_tensor, prev_LC, prev_Cortex, return_activations=True)
+
+    act_lc = LC_act.cpu().numpy()
+    act_ne = NE_act.cpu().numpy()
+    act_cortex = C_act.cpu().numpy()
+
+    act_combined = np.hstack([act_lc, act_ne, act_cortex])
+    
+    scaler = StandardScaler()
+    act_combined_scaled = scaler.fit_transform(act_combined)
+    pca = PCA(n_components=2)
+    act_pca = pca.fit_transform(act_combined_scaled)
+    explained_variance = pca.explained_variance_ratio_ * 100
+
+    tsne = TSNE(n_components=2, perplexity=30, random_state=42)
+    act_tsne = tsne.fit_transform(act_pca)
+
+    num_clusters = 2
+    kmeans = KMeans(n_clusters=num_clusters, random_state=42, n_init=10)
+    clusters_pca = kmeans.fit_predict(act_pca)
+    clusters_tsne = kmeans.predict(act_tsne)
+
+    fig, axes = plt.subplots(2, 3, figsize=(20, 12))
+    axes = axes.flatten()
+    
+    activations_list = [act_lc, act_ne, act_cortex]
+    labels = ["LC", "NE", "Cortex"]
+
+    for i, (activation, label) in enumerate(zip(activations_list, labels)):
+        pca = PCA(n_components=2)
+        act_pca = pca.fit_transform(activation)
+        explained_variance = pca.explained_variance_ratio_ * 100
+        
+        # PCA Projection
+        sns.scatterplot(x=act_pca[:, 0], y=act_pca[:, 1], hue=df_clean["Condition"], palette="viridis", alpha=0.7, ax=axes[i])
+        axes[i].set_title(f"{label} PCA\nExplained Variance: PC1={explained_variance[0]:.2f}%, PC2={explained_variance[1]:.2f}%")
+        axes[i].set_xlabel(f"PCA Component 1 ({explained_variance[0]:.2f}% Variance)")
+        axes[i].set_ylabel(f"PCA Component 2 ({explained_variance[1]:.2f}% Variance)")
+
+    # K-Means Clustering
+    sns.scatterplot(x=act_pca[:, 0], y=act_pca[:, 1], hue=clusters_pca, palette="tab10", alpha=0.7, ax=axes[3])
+    axes[3].set_title("PCA Clustering")
+
+    sns.scatterplot(x=act_tsne[:, 0], y=act_tsne[:, 1], hue=clusters_tsne, palette="tab10", alpha=0.7, ax=axes[4])
+    axes[4].set_title("t-SNE Clustering")
+
+    plt.tight_layout()
+    plt.show()
+
+
 def pca_lcne_lstm(model, X_tensor, df_clean):
     '''PCA analysis for LCNE LSTM model'''
     model.eval()
@@ -214,142 +272,9 @@ def pca_lcne_lstm(model, X_tensor, df_clean):
 
     plt.tight_layout()
     plt.show()
-
-
-def pca_lcne(model, X_tensor, df_clean):
-    """
-    For the Vanilla LC feedforward models, extracts activations and performs PCA, t-SNE, and applies clustering to visualize.
-    """
-
-    with torch.no_grad():
-        prev_LC = torch.zeros(X_tensor.shape[0], model.hidden_dim)
-        prev_Cortex = torch.zeros(X_tensor.shape[0], model.hidden_dim)
-        
-        LC_act, NE_act, C_act, Pupil_pred, LC_raw, NE_raw, C_raw = model(X_tensor, prev_LC, prev_Cortex, return_activations=True)
-
-    act_lc = LC_act.cpu().numpy()
-    act_ne = NE_act.cpu().numpy()
-    act_cortex = C_act.cpu().numpy()
-
-    # df_activations = pd.DataFrame({
-    #     'LC_Mean': act_lc.mean(axis=1),
-    #     'NE_Mean': act_ne.mean(axis=1),
-    #     'Cortex_Mean': act_cortex.mean(axis=1),
-    #     'PupilPred': Pupil_pred.cpu().numpy().squeeze(),
-    #     'ActualPupil': df_clean['Event_PupilDilation'].values  
-    # })
-
-    act_combined = np.hstack([act_lc, act_ne, act_cortex])
-    
-    scaler = StandardScaler()
-    act_combined_scaled = scaler.fit_transform(act_combined)
-    pca = PCA(n_components=2)
-    act_pca = pca.fit_transform(act_combined_scaled)
-    explained_variance = pca.explained_variance_ratio_ * 100
-
-    tsne = TSNE(n_components=2, perplexity=30, random_state=42)
-    act_tsne = tsne.fit_transform(act_pca)
-
-    num_clusters = 2
-    kmeans = KMeans(n_clusters=num_clusters, random_state=42, n_init=10)
-    clusters_pca = kmeans.fit_predict(act_pca)
-    clusters_tsne = kmeans.predict(act_tsne)
-
-    fig, axes = plt.subplots(2, 3, figsize=(20, 12))
-    axes = axes.flatten()
-    
-    activations_list = [act_lc, act_ne, act_cortex]
-    labels = ["LC", "NE", "Cortex"]
-
-    for i, (activation, label) in enumerate(zip(activations_list, labels)):
-        pca = PCA(n_components=2)
-        act_pca = pca.fit_transform(activation)
-        explained_variance = pca.explained_variance_ratio_ * 100
-        
-        # PCA Projection
-        sns.scatterplot(x=act_pca[:, 0], y=act_pca[:, 1], hue=df_clean["Condition"], palette="viridis", alpha=0.7, ax=axes[i])
-        axes[i].set_title(f"{label} PCA\nExplained Variance: PC1={explained_variance[0]:.2f}%, PC2={explained_variance[1]:.2f}%")
-        axes[i].set_xlabel(f"PCA Component 1 ({explained_variance[0]:.2f}% Variance)")
-        axes[i].set_ylabel(f"PCA Component 2 ({explained_variance[1]:.2f}% Variance)")
-
-    # K-Means Clustering
-    sns.scatterplot(x=act_pca[:, 0], y=act_pca[:, 1], hue=clusters_pca, palette="tab10", alpha=0.7, ax=axes[3])
-    axes[3].set_title("PCA Clustering")
-
-    sns.scatterplot(x=act_tsne[:, 0], y=act_tsne[:, 1], hue=clusters_tsne, palette="tab10", alpha=0.7, ax=axes[4])
-    axes[4].set_title("t-SNE Clustering")
-
-    plt.tight_layout()
-    plt.show()
-
-
-def firing_lcne(model, X_test, df_clean):
-    '''Firing rate analysis for different LC models'''
-
-    with torch.no_grad():
-        LC_activations, NE_activations, C_activations, Pupil_pred = model(
-            X_test, torch.zeros(X_test.shape[0], 8), torch.zeros(X_test.shape[0], 8)
-        )
-
-    act_lc = LC_activations.cpu().numpy().squeeze()
-    act_ne = NE_activations.cpu().numpy().squeeze()
-    act_cortex = C_activations.cpu().numpy().squeeze()
-    pupil_pred = Pupil_pred.cpu().numpy().squeeze()
-
-    pupil_actual = df_clean["Event_PupilDilation"].values
-    time_axis = np.arange(len(pupil_actual))  # Time index
-
-    scaler_pupil = MinMaxScaler(feature_range=(0, 1))
-    pupil_actual_scaled = scaler_pupil.fit_transform(pupil_actual.reshape(-1, 1)).squeeze()
-    pupil_pred_scaled = scaler_pupil.transform(pupil_pred.reshape(-1, 1)).squeeze()
-
-    scaler_lc = MinMaxScaler(feature_range=(0, 1))
-    act_lc_scaled = scaler_lc.fit_transform(act_lc.reshape(-1, 1)).squeeze()
-
-    scaler_ne = MinMaxScaler(feature_range=(0, 1))
-    act_ne_scaled = scaler_ne.fit_transform(act_ne.reshape(-1, 1)).squeeze()
-
-    scaler_cortex = MinMaxScaler(feature_range=(0, 1))
-    act_cortex_scaled = scaler_cortex.fit_transform(act_cortex.reshape(-1, 1)).squeeze()
-
-    # Ensure all variables have the same length
-    min_length = min(len(time_axis), len(pupil_actual_scaled), len(pupil_pred_scaled), 
-                    len(act_lc_scaled), len(act_ne_scaled), len(act_cortex_scaled))
-
-    time_axis = time_axis[:min_length]
-    pupil_actual_scaled = pupil_actual_scaled[:min_length]
-    pupil_pred_scaled = pupil_pred_scaled[:min_length]
-    act_lc_scaled = act_lc_scaled[:min_length]
-    act_ne_scaled = act_ne_scaled[:min_length]
-    act_cortex_scaled = act_cortex_scaled[:min_length]
-
-
-    plt.figure(figsize=(12, 6))
-
-    sns.lineplot(x=time_axis, y=pupil_actual_scaled, label="Actual Pupil Dilation", color='blue', linestyle="dashed", alpha=0.8)
-    sns.lineplot(x=time_axis, y=act_lc_scaled, label="LC Activation", color='green', alpha=0.5)
-    # sns.lineplot(x=time_axis, y=act_ne_scaled, label="NE Activation", color='purple', alpha=0.5)
-    # sns.lineplot(x=time_axis, y=act_cortex_scaled, label="Cortex Activation", color='orange', alpha=0.5)
-
-    plt.xlabel("Time (Trials)")
-    plt.ylabel("Normalized Activation")
-    plt.title("Model Activations vs. Real Pupil Dilation Over Time")
-    plt.legend()
-    plt.grid(True)
-    plt.show()
-
-    lc_corr = pearsonr(act_lc_scaled, pupil_actual_scaled)[0]
-    ne_corr = pearsonr(act_ne_scaled, pupil_actual_scaled)[0]
-    cortex_corr = pearsonr(act_cortex_scaled, pupil_actual_scaled)[0]
-    pupil_pred_corr = pearsonr(pupil_pred_scaled, pupil_actual_scaled)[0]
-    print(f"Correlation with Actual Pupil Dilation:")
-    print(f"LC Activation: {lc_corr:.3f}")
-    print(f"NE Activation: {ne_corr:.3f}")
-    print(f"Cortex Activation: {cortex_corr:.3f}")
-    print(f"Predicted Pupil Dilation: {pupil_pred_corr:.3f}")
     
 
-def pca_gadget(model, X_tensor, df_clean):
+def pca_lstm_gadget(model, X_tensor, df_clean):
     '''PCA analysis for LC LSTM Gadget model'''
     model.eval()
     with torch.no_grad():
@@ -483,7 +408,6 @@ def pca_ff_gadget(model, X_tensor, df_clean):
     print("Pearson Correlation with Actual Pupil Dilation:")
     for key, value in correlations.items():
         print(f"{key}: {value:.3f}")
-
 
 
 def analyze_ff_gadget_activations(model, X_tensor, df_clean):
