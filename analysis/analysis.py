@@ -272,158 +272,21 @@ def pca_lcne_lstm(model, X_tensor, df_clean):
 
     plt.tight_layout()
     plt.show()
-    
-
-def pca_lstm_gadget(model, X_tensor, df_clean):
-    '''PCA analysis for LC LSTM Gadget model'''
-    model.eval()
-    with torch.no_grad():
-        X_test = X_tensor.unsqueeze(1)  # Ensure (batch, seq_len, features)
-        
-        Pupil_pred, LC_act, NE_act, forget_gate, input_gate, output_gate = model(X_test)
-
-    act_lc = LC_act.cpu().numpy()
-    act_ne = NE_act.cpu().numpy()
-    forget_gate_np = forget_gate.cpu().numpy()
-    input_gate_np = input_gate.cpu().numpy()
-    output_gate_np = output_gate.cpu().numpy()
-    pupil_pred = Pupil_pred.cpu().numpy().squeeze()
-    pupil_actual = df_clean["Event_PupilDilation"].values
-
-    min_length = min(len(pupil_actual), len(pupil_pred))
-    pupil_actual = pupil_actual[:min_length]
-    pupil_pred = pupil_pred[:min_length]
-
-    df_activations = pd.DataFrame({
-        'LC_Mean': act_lc.mean(axis=1), 'LC_Var': act_lc.var(axis=1),
-        'NE_Mean': act_ne.mean(axis=1), 'NE_Var': act_ne.var(axis=1),
-        'ForgetGate_Mean': forget_gate_np.mean(axis=1), 'ForgetGate_Var': forget_gate_np.var(axis=1),
-        'InputGate_Mean': input_gate_np.mean(axis=1), 'InputGate_Var': input_gate_np.var(axis=1),
-        'OutputGate_Mean': output_gate_np.mean(axis=1), 'OutputGate_Var': output_gate_np.var(axis=1),
-        'PupilPred': pupil_pred, 'ActualPupil': pupil_actual
-    })
-
-    activations_list = [act_lc, act_ne, forget_gate_np, input_gate_np, output_gate_np]
-    labels = ["LC", "NE", "Forget Gate", "Input Gate", "Output Gate"]
-
-    fig, axes = plt.subplots(2, 3, figsize=(20, 10))
-    axes = axes.flatten()
-
-    for i, (activation, label) in enumerate(zip(activations_list, labels)):
-        pca = PCA(n_components=2)
-        act_pca = pca.fit_transform(activation)
-        explained_variance = pca.explained_variance_ratio_ * 100
-        
-        ax = axes[i]
-        sns.scatterplot(x=act_pca[:, 0], y=act_pca[:, 1], hue=df_clean["Condition"], palette="viridis", alpha=0.7, ax=ax)
-        ax.set_title(f"{label} Activations\nPC1={explained_variance[0]:.2f}%, PC2={explained_variance[1]:.2f}%")
-        ax.set_xlabel(f"PCA Component 1 ({explained_variance[0]:.2f}% Variance)")
-        ax.set_ylabel(f"PCA Component 2 ({explained_variance[1]:.2f}% Variance)")
-
-    plt.tight_layout()
-    plt.show()
-
-    corr_lc = pearsonr(df_activations['LC_Mean'], df_activations['ActualPupil'])[0]
-    corr_ne = pearsonr(df_activations['NE_Mean'], df_activations['ActualPupil'])[0]
-    corr_forget = pearsonr(df_activations['ForgetGate_Mean'], df_activations['ActualPupil'])[0]
-    corr_input = pearsonr(df_activations['InputGate_Mean'], df_activations['ActualPupil'])[0]
-    corr_output = pearsonr(df_activations['OutputGate_Mean'], df_activations['ActualPupil'])[0]
-    corr_pupil = pearsonr(df_activations['PupilPred'], df_activations['ActualPupil'])[0]
-
-    print("Pearson Correlation with Actual Pupil Dilation:")
-    print(f"LC Activation: {corr_lc:.3f}")
-    print(f"NE Activation: {corr_ne:.3f}")
-    print(f"Forget Gate: {corr_forget:.3f}")
-    print(f"Input Gate: {corr_input:.3f}")
-    print(f"Output Gate: {corr_output:.3f}")
-    print(f"Predicted Pupil Dilation: {corr_pupil:.3f}")
-
-
-def pca_ff_gadget(model, X_tensor, df_clean):
-    '''PCA and correlation analysis for the FFController with LCNE Gadget'''
-    
-    model.eval()
-    with torch.no_grad():
-        Pupil_pred, LC_act, NE_act, forget_gate, input_gate, output_gate = model(X_tensor)
-
-    # Convert activations to NumPy
-    act_lc = LC_act.cpu().numpy()
-    act_ne = NE_act.cpu().numpy()
-    forget_gate_np = forget_gate.cpu().numpy()
-    input_gate_np = input_gate.cpu().numpy()
-    output_gate_np = output_gate.cpu().numpy()
-    pupil_pred = Pupil_pred.cpu().numpy().squeeze()
-    pupil_actual = df_clean["Event_PupilDilation"].values
-
-    # Ensure matching lengths
-    min_length = min(len(pupil_actual), len(pupil_pred))
-    pupil_actual = pupil_actual[:min_length]
-    pupil_pred = pupil_pred[:min_length]
-
-    # Truncate df_clean["Condition"] to match the activation lengths
-    df_clean = df_clean.iloc[:act_lc.shape[0]]
-
-    # Create DataFrame for statistical analysis
-    df_activations = pd.DataFrame({
-        'LC_Mean': act_lc.mean(axis=1), 'LC_Var': act_lc.var(axis=1),
-        'NE_Mean': act_ne.mean(axis=1), 'NE_Var': act_ne.var(axis=1),
-        'ForgetGate_Mean': forget_gate_np.mean(axis=1), 'ForgetGate_Var': forget_gate_np.var(axis=1),
-        'InputGate_Mean': input_gate_np.mean(axis=1), 'InputGate_Var': input_gate_np.var(axis=1),
-        'OutputGate_Mean': output_gate_np.mean(axis=1), 'OutputGate_Var': output_gate_np.var(axis=1),
-        'PupilPred': pupil_pred, 'ActualPupil': pupil_actual
-    })
-
-    # Perform PCA for visualization
-    activations_list = [act_lc, act_ne, forget_gate_np, input_gate_np, output_gate_np]
-    labels = ["LC", "NE", "Forget Gate", "Input Gate", "Output Gate"]
-
-    fig, axes = plt.subplots(2, 3, figsize=(20, 10))
-    axes = axes.flatten()
-
-    for i, (activation, label) in enumerate(zip(activations_list, labels)):
-        pca = PCA(n_components=2)
-        act_pca = pca.fit_transform(activation)
-        explained_variance = pca.explained_variance_ratio_ * 100
-
-        ax = axes[i]
-        sns.scatterplot(x=act_pca[:, 0], y=act_pca[:, 1], 
-                        hue=df_clean["Condition"], palette="viridis", alpha=0.7, ax=ax)
-        ax.set_title(f"{label} Activations\nPC1={explained_variance[0]:.2f}%, PC2={explained_variance[1]:.2f}%")
-        ax.set_xlabel(f"PCA Component 1 ({explained_variance[0]:.2f}% Variance)")
-        ax.set_ylabel(f"PCA Component 2 ({explained_variance[1]:.2f}% Variance)")
-
-    plt.tight_layout()
-    plt.show()
-
-    # Compute Pearson Correlation with Pupil Dilation
-    correlations = {
-        "LC Activation": pearsonr(df_activations['LC_Mean'], df_activations['ActualPupil'])[0],
-        "NE Activation": pearsonr(df_activations['NE_Mean'], df_activations['ActualPupil'])[0],
-        "Forget Gate": pearsonr(df_activations['ForgetGate_Mean'], df_activations['ActualPupil'])[0],
-        "Input Gate": pearsonr(df_activations['InputGate_Mean'], df_activations['ActualPupil'])[0],
-        "Output Gate": pearsonr(df_activations['OutputGate_Mean'], df_activations['ActualPupil'])[0],
-        "Predicted Pupil Dilation": pearsonr(df_activations['PupilPred'], df_activations['ActualPupil'])[0]
-    }
-
-    print("Pearson Correlation with Actual Pupil Dilation:")
-    for key, value in correlations.items():
-        print(f"{key}: {value:.3f}")
 
 
 def analyze_ff_gadget_activations(model, X_tensor, df_clean):
     """
-    Runs PCA and t-SNE for layer-wise activations in FFControllerWithLCNEGadget.
+    Runs PCA for layer-wise activations in FFGadgetController and analyzes correlation.
     """
     model.eval()
     with torch.no_grad():
-        Pupil_pred, LC_act, NE_act, forget_gate, input_gate, output_gate, hidden_1, hidden_2 = model(X_tensor, activation=True)
+        Pupil_pred, LC_act, NE_act, tonic_NE, phasic_NE, hidden_1, hidden_2 = model(X_tensor, activation=True)
 
     activations_dict = {
         "LC": LC_act.cpu().numpy(),
         "NE": NE_act.cpu().numpy(),
-        "Forget Gate": forget_gate.cpu().numpy(),
-        "Input Gate": input_gate.cpu().numpy(),
-        "Output Gate": output_gate.cpu().numpy(),
+        "Tonic_NE": tonic_NE.cpu().numpy(),
+        "Phasic_NE": phasic_NE.cpu().numpy(),
         "Layer 1": hidden_1.cpu().numpy(),
         "Layer 2": hidden_2.cpu().numpy(),
     }
@@ -433,17 +296,18 @@ def analyze_ff_gadget_activations(model, X_tensor, df_clean):
 
     # Ensure matching lengths
     min_length = min(len(pupil_actual), len(pupil_pred))
-    pupil_actual = pupil_actual[:min_length]
-    pupil_pred = pupil_pred[:min_length]
+    pupil_actual, pupil_pred = pupil_actual[:min_length], pupil_pred[:min_length]
 
-    df_activations = pd.DataFrame({f"{key}_Mean": act.mean(axis=1) for key, act in activations_dict.items()})
+    df_activations = pd.DataFrame({
+        f"{key}_Mean": act.mean(axis=1) for key, act in activations_dict.items()
+    })
     df_activations["PupilPred"] = pupil_pred
     df_activations["ActualPupil"] = pupil_actual
 
-    # Dynamically Adjust the Grid Layout
+    # Set Grid Layout
     num_activations = len(activations_dict)
-    cols = 3
-    rows = -(-num_activations // cols)  # Ceiling division to determine rows
+    cols = 3  # Fixed number of columns
+    rows = -(-num_activations // cols)  # Ceiling division
 
     fig, axes = plt.subplots(rows, cols, figsize=(5 * cols, 5 * rows))
     axes = axes.flatten()
@@ -453,19 +317,25 @@ def analyze_ff_gadget_activations(model, X_tensor, df_clean):
         act_pca = pca.fit_transform(activation)
         explained_variance = pca.explained_variance_ratio_ * 100
 
-        ax = axes[i]
-        sns.scatterplot(x=act_pca[:, 0], y=act_pca[:, 1], hue=df_clean["Condition"], palette="viridis", alpha=0.7, ax=ax)
-        ax.set_title(f"{label} Activations (PCA)\nPC1={explained_variance[0]:.2f}%, PC2={explained_variance[1]:.2f}%")
-        ax.set_xlabel(f"PC1 ({explained_variance[0]:.2f}% Variance)")
-        ax.set_ylabel(f"PC2 ({explained_variance[1]:.2f}% Variance)")
+        sns.scatterplot(
+            x=act_pca[:, 0], y=act_pca[:, 1], hue=df_clean["Condition"],
+            palette="viridis", alpha=0.7, ax=axes[i]
+        )
+        axes[i].set_title(f"{label} Activations (PCA)\nPC1={explained_variance[0]:.2f}%, PC2={explained_variance[1]:.2f}%")
+        axes[i].set_xlabel(f"PC1 ({explained_variance[0]:.2f}% Variance)")
+        axes[i].set_ylabel(f"PC2 ({explained_variance[1]:.2f}% Variance)")
 
+    # Remove extra empty plots
     for j in range(i + 1, len(axes)):
         fig.delaxes(axes[j])
 
     plt.tight_layout()
     plt.show()
 
-    correlations = {key: pearsonr(df_activations[f"{key}_Mean"], df_activations["ActualPupil"])[0] for key in activations_dict.keys()}
+    correlations = {
+        key: pearsonr(df_activations[f"{key}_Mean"], df_activations["ActualPupil"])[0]
+        for key in activations_dict.keys()
+    }
     correlations["Predicted Pupil Dilation"] = pearsonr(df_activations["PupilPred"], df_activations["ActualPupil"])[0]
 
     print("\n Pearson Correlation with Actual Pupil Dilation:")

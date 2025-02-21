@@ -7,7 +7,7 @@ import torch
 
 from models.ClassicModels import FeedForwardNN, RecurrentNet, LSTMModel
 from models.LCModels import LCNECortexFitter, LCNECortexLSTM
-from models.LCGadgetModels import LSTMGadgetController, FFGadgetController
+from models.LCGadgetModels import FFGadgetController
 
 def train_feed_forward_nn(X_train, Y_train, epochs):
     '''Training feed forward neural network'''
@@ -160,79 +160,47 @@ def train_lstm_lc_model(X_train, Y_train, epochs, hidden_dim):
     
     return model
 
-def train_lstm_controller(X_train, Y_train, epochs, hidden_dim):
-    '''Training LSTM with LC-NE Gadget model'''
-    input_dim = X_train.shape[1]
-    model = LSTMGadgetController(input_dim=input_dim, hidden_dim=hidden_dim)
 
-    optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-5)
-    loss_fn = nn.SmoothL1Loss()
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5, verbose=True)
-    batch_size = 32
-    patience = 1000
-    best_loss = float('inf')
-    stopping_counter = 0
-
-    for epoch in range(epochs):
-        optimizer.zero_grad()
-
-        idx = torch.randint(0, X_train.shape[0], (batch_size,))
-        X_batch, Y_batch = X_train[idx], Y_train[idx]
-
-        # Reshape batch for LSTM input: (batch_size, seq_len=1, input_dim)
-        X_batch = X_batch.unsqueeze(1)  
-
-        output, LC_pred, NE_pred, forget_signal, input_signal, output_signal = model(X_batch)
-        loss = loss_fn(output, Y_batch.unsqueeze(1))
-        loss.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
-        optimizer.step()
-        
-        scheduler.step(loss)
-
-        if loss.item() < best_loss:
-            best_loss = loss.item()
-            stopping_counter = 0
-        else:
-            stopping_counter += 1
-            if stopping_counter >= patience:
-                print(f"Early stopping at epoch {epoch}")
-                break
-
-        if epoch % 100 == 0:
-            lr = optimizer.param_groups[0]['lr']
-            print(f"Epoch {epoch}, Loss: {loss.item():.6f}, LR: {lr:.6f}")
-
-    print("Training complete!")
-    
-    return model
-
-
-def train_ff_controller(X_train, Y_train, epochs, hidden_dim):
+def train_ff_controller(X_train, Y_train, epochs, hidden_dim, patience=2000):
     """Train the FF Controller model with LC-NE gadget"""
     
     input_dim = X_train.shape[1]
-    batch_size = 32
+    batch_size = min(32, X_train.shape[0])  # Adjust batch size if dataset is small
     model = FFGadgetController(input_dim, hidden_dim)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-5)
-    loss_fn = nn.SmoothL1Loss()
     
+    optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-5)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5, verbose=True)
+    loss_fn = nn.SmoothL1Loss()
+
+    best_loss = float('inf')
+    patience_counter = 0
+
     for epoch in range(epochs):
         optimizer.zero_grad()
         
         idx = torch.randint(0, X_train.shape[0], (batch_size,))
         X_batch, Y_batch = X_train[idx], Y_train[idx]
-        
-        Pupil_pred, _, _, _, _, _ = model(X_batch)
 
+        Pupil_pred, LC_t, NE_t, tonic_NE, phasic_NE = model(X_batch)
         loss = loss_fn(Pupil_pred, Y_batch.unsqueeze(1))
-
         loss.backward()
         optimizer.step()
+        scheduler.step(loss)  
+
+        if loss.item() < best_loss:
+            best_loss = loss.item()
+            patience_counter = 0
+        else:
+            patience_counter += 1
 
         if epoch % 100 == 0:
-            print(f"Epoch {epoch}, Loss: {loss.item()}")
-    
+            print(f"Epoch {epoch}, Loss: {loss.item():.6f}")
+
+        # if patience_counter >= patience:
+        #     print(f"Early stopping triggered at epoch {epoch}")
+        #     break
+
     print("Training complete!")
     
     return model
+
