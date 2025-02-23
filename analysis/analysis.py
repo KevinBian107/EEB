@@ -9,6 +9,8 @@ from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.linear_model import LinearRegression
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -274,9 +276,21 @@ def pca_lcne_lstm(model, X_tensor, df_clean):
     plt.show()
 
 
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.linear_model import LinearRegression
+from scipy.stats import pearsonr
+import pandas as pd
+import torch
+
 def analyze_ff_gadget_activations(model, X_tensor, df_clean):
     """
-    Runs PCA for layer-wise activations in FFGadgetController and analyzes correlation.
+    Runs PCA for layer-wise activations in FFGadgetController and analyzes correlation,
+    while also testing for an inverted-U relationship in NE firing.
     """
     model.eval()
     with torch.no_grad():
@@ -304,10 +318,10 @@ def analyze_ff_gadget_activations(model, X_tensor, df_clean):
     df_activations["PupilPred"] = pupil_pred
     df_activations["ActualPupil"] = pupil_actual
 
-    # Set Grid Layout
+    # --- PCA Analysis ---
     num_activations = len(activations_dict)
-    cols = 3  # Fixed number of columns
-    rows = -(-num_activations // cols)  # Ceiling division
+    cols = 3
+    rows = -(-num_activations // cols)
 
     fig, axes = plt.subplots(rows, cols, figsize=(5 * cols, 5 * rows))
     axes = axes.flatten()
@@ -325,13 +339,45 @@ def analyze_ff_gadget_activations(model, X_tensor, df_clean):
         axes[i].set_xlabel(f"PC1 ({explained_variance[0]:.2f}% Variance)")
         axes[i].set_ylabel(f"PC2 ({explained_variance[1]:.2f}% Variance)")
 
-    # Remove extra empty plots
     for j in range(i + 1, len(axes)):
         fig.delaxes(axes[j])
 
     plt.tight_layout()
     plt.show()
 
+    # --- Checking Inverted-U Hypothesis (Separate Plots) ---
+    fig, ax = plt.subplots(1, 2, figsize=(12, 5))
+
+    # --- Plot Tonic NE ---
+    sns.scatterplot(x=pupil_actual, y=tonic_NE.mean(axis=1), label="Tonic NE", alpha=0.5, ax=ax[0])
+    
+    poly = PolynomialFeatures(degree=2)
+    pupil_poly = poly.fit_transform(pupil_actual.reshape(-1, 1))
+    tonic_model = LinearRegression().fit(pupil_poly, tonic_NE.mean(axis=1))
+    x_vals = np.linspace(pupil_actual.min(), pupil_actual.max(), 100)
+    x_poly = poly.transform(x_vals.reshape(-1, 1))
+    ax[0].plot(x_vals, tonic_model.predict(x_poly), color="blue", label="Tonic NE (Quadratic Fit)")
+    
+    ax[0].set_xlabel("Arousal Level (Pupil Dilation)")
+    ax[0].set_ylabel("Tonic NE Activation")
+    ax[0].set_title("Tonic NE vs. Arousal (Checking Inverted-U)")
+    ax[0].legend()
+
+    # --- Plot Phasic NE ---
+    sns.scatterplot(x=pupil_actual, y=phasic_NE.mean(axis=1), label="Phasic NE", alpha=0.5, ax=ax[1])
+    
+    phasic_model = LinearRegression().fit(pupil_poly, phasic_NE.mean(axis=1))
+    ax[1].plot(x_vals, phasic_model.predict(x_poly), color="red", label="Phasic NE (Quadratic Fit)")
+    
+    ax[1].set_xlabel("Arousal Level (Pupil Dilation)")
+    ax[1].set_ylabel("Phasic NE Activation")
+    ax[1].set_title("Phasic NE vs. Arousal (Checking Inverted-U)")
+    ax[1].legend()
+
+    plt.tight_layout()
+    plt.show()
+    
+    # --- Correlations ---
     correlations = {
         key: pearsonr(df_activations[f"{key}_Mean"], df_activations["ActualPupil"])[0]
         for key in activations_dict.keys()

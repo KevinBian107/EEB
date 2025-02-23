@@ -196,9 +196,9 @@ def train_ff_controller(X_train, Y_train, epochs, hidden_dim, patience=2000):
         if epoch % 100 == 0:
             print(f"Epoch {epoch}, Loss: {loss.item():.6f}")
 
-        # if patience_counter >= patience:
-        #     print(f"Early stopping triggered at epoch {epoch}")
-        #     break
+        if patience_counter >= patience:
+            print(f"Early stopping triggered at epoch {epoch}")
+            break
 
     print("Training complete!")
     

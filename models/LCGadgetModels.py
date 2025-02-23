@@ -2,27 +2,53 @@ import torch
 import torch.nn as nn
 
 class LCNEGadget(nn.Module):
-    """Neuro-inspired LC-NE system for neuromodulation"""
+    """Self-learned LC-NE system with better Phasic NE adaptation."""
     
     def __init__(self, hidden_dim):
         super(LCNEGadget, self).__init__()
         self.hidden_dim = hidden_dim
-        self.W_LC = nn.Linear(hidden_dim, hidden_dim)
-        self.tonic_control = nn.Linear(hidden_dim, hidden_dim)  # Regulates baseline NE
-        self.phasic_control = nn.Linear(hidden_dim, hidden_dim)  # Regulates burst-driven NE
-        self.sigmoid = nn.Sigmoid()
+
+        # Deeper LC transformation for more expressivity
+        self.W_LC1 = nn.Linear(hidden_dim, hidden_dim)
+        self.W_LC2 = nn.Linear(hidden_dim, hidden_dim)
+
+        # NE Modulation
+        self.tonic_control = nn.Linear(hidden_dim, hidden_dim)
+        self.phasic_control = nn.Linear(hidden_dim, hidden_dim)
+
+        # Learnable NE scaling
+        self.tonic_gain = nn.Parameter(torch.ones(hidden_dim))  
+        self.phasic_gain = nn.Parameter(torch.ones(hidden_dim))  
+
+        # Adaptive suppression factor for Phasic NE
+        self.suppression_factor = nn.Parameter(torch.ones(hidden_dim))
+
+        # Gating function (learns how to balance tonic & phasic NE)
+        self.gate = nn.Linear(hidden_dim, hidden_dim)
+
+        # Normalization layer (prevents runaway NE values)
+        self.norm = nn.LayerNorm(hidden_dim)
+
         self.tanh = nn.Tanh()
+        self.sigmoid = nn.Sigmoid()
 
     def forward(self, hidden_state):
-        """Modulates NE release based on phasic & tonic LC activity"""
+        """Infers NE modulation dynamically and normalizes output."""
         
-        LC_t = self.tanh(self.W_LC(hidden_state))
-        tonic_NE = self.sigmoid(self.tonic_control(LC_t))  # Slow, steady modulation
-        phasic_NE = self.sigmoid(self.phasic_control(LC_t))  # Fast, event-driven modulation
+        LC_t = self.tanh(self.W_LC1(hidden_state))
+        LC_t = self.tanh(self.W_LC2(LC_t))
 
-        NE_t = tonic_NE + phasic_NE
+        tonic_NE = self.tanh(self.tonic_control(LC_t)) * self.tonic_gain  
+        phasic_NE = self.tanh(self.phasic_control(LC_t)) * self.phasic_gain  
+        phasic_NE *= self.sigmoid(self.suppression_factor * LC_t)
+
+        gating_factor = self.sigmoid(self.gate(LC_t))  
+        NE_t = (1 - gating_factor) * tonic_NE + gating_factor * phasic_NE  
+        
+        NE_t = self.norm(NE_t)  
 
         return LC_t, NE_t, tonic_NE, phasic_NE
+
 
 
 class FFGadgetController(nn.Module):
@@ -37,7 +63,7 @@ class FFGadgetController(nn.Module):
 
         self.lcne_gadget = LCNEGadget(hidden_dim) 
 
-        self.modulation_fc = nn.Linear(hidden_dim * 2, hidden_dim)  # Includes tonic & phasic NE
+        self.modulation_fc = nn.Linear(hidden_dim * 2, hidden_dim)  # tonic & phasic NE
         self.output_layer = nn.Linear(hidden_dim, 1)
 
     def forward(self, x, activation=False):
@@ -45,10 +71,10 @@ class FFGadgetController(nn.Module):
         hidden_1 = torch.relu(self.fc1(x))
         hidden_2 = torch.relu(self.fc2(hidden_1))
 
-        # Get neuromodulatory signals
+        # neuromodulatory signals
         LC_t, NE_t, tonic_NE, phasic_NE = self.lcne_gadget(hidden_2)
 
-        # FFN Learns How to Use Neuromodulation
+        # FFN Learns How to Use Neuromodulation through residuals
         modulated_input = torch.cat([hidden_2, NE_t], dim=1)
         modulated_hidden = torch.relu(self.modulation_fc(modulated_input))
         output = self.output_layer(modulated_hidden)
