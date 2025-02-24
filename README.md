@@ -22,7 +22,7 @@ We try to leverage neurosciecne behavior data related to LC-NE system to build a
 At last, we can use this fitteed model to prompt them under certain `experimental` conditions and see hwo they would react to as compares to rea behavior data from animals or human (i.e. the two lick test for rodent).
 
 ## Preliminary Results:
-We provide an [sample notebook](https://github.com/KevinBian107/Blue-Dot-Project/blob/main/simulate.ipynb) for demostration purposes. Now  we have a sand-box that has been setup  to implement all kinds of cool neuroscience ideas that we can do.
+We provide an [sample notebook](https://github.com/KevinBian107/Blue-Dot-Project/blob/main/simulate.ipynb) for demostration purposes. Now  we have a sand-box that has been setup  to implement all kinds of cool neuroscience ideas that we can do. We have also created [model structure](https://github.com/KevinBian107/Blue-Dot-Project/blob/main/model_pipeline.md) for showcase our pipeline.
 
 | FF Gadget Model with PCA clusters of different activation layers |
 |--------------|
